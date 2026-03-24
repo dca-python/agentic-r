@@ -10,8 +10,6 @@ set -euo pipefail
 # ──────────────────────────────────────────────
 
 REPO_URL="https://raw.githubusercontent.com/dca-python/agentic-r/main"
-MANIFEST_DIR="$HOME/.r-ai-powerpack"
-MANIFEST_FILE="$MANIFEST_DIR/install-manifest.json"
 
 clear
 echo "=========================================="
@@ -134,147 +132,18 @@ fi
 echo ""
 
 # ──────────────────────────────────────────────
-# 3. VS CODE SETTINGS & KEYBINDINGS
-#    Uses the install manifest to restore the
-#    exact state from before the Power-Pack
-#    installation. Settings you changed or added
-#    independently after that point stay untouched.
+# 3. VS CODE KEYBINDINGS (global — the only thing
+#    rstudio-feel.sh writes outside the repo)
 # ──────────────────────────────────────────────
 
-echo "── VS Code Settings ──"
+echo "── VS Code Keybindings ──"
 echo ""
 
-VSCODE_USER_DIR="$HOME/Library/Application Support/Code/User"
-VSCODE_SETTINGS="$VSCODE_USER_DIR/settings.json"
-VSCODE_KEYBINDINGS="$VSCODE_USER_DIR/keybindings.json"
+VSCODE_KEYBINDINGS="$HOME/Library/Application Support/Code/User/keybindings.json"
 
-if [[ -f "$MANIFEST_FILE" ]]; then
-    INSTALL_DATE=$(python3 -c "
-import json
-with open('$MANIFEST_FILE') as f:
-    m = json.load(f)
-print(m.get('installed_at', 'unknown'))
-" 2>/dev/null || echo "unknown")
-    echo "  Found install manifest from: $INSTALL_DATE"
-    echo ""
-    echo "  This will restore the following VS Code settings to their state"
-    echo "  from BEFORE the Power-Pack was installed ($INSTALL_DATE)."
-    echo "  Any settings you changed or added independently since then"
-    echo "  will NOT be affected."
-    echo ""
-fi
-
-# ── Settings.json restore ──
-if [[ -f "$VSCODE_SETTINGS" ]] && grep -q "r.plot.useHttpgd" "$VSCODE_SETTINGS" 2>/dev/null; then
-    if confirm "Restore VS Code settings.json to pre-Power-Pack state?"; then
-        if [[ -f "$MANIFEST_FILE" ]]; then
-            # Manifest-based restore: surgical, key-by-key
-            python3 -c "
-import json, sys
-
-manifest_path = '$MANIFEST_FILE'
-settings_path = '$VSCODE_SETTINGS'
-
-with open(manifest_path, 'r') as f:
-    manifest = json.load(f)
-
-with open(settings_path, 'r') as f:
-    current = json.load(f)
-
-before = manifest.get('settings_before', {})
-
-for key, old_value in before.items():
-    if old_value is None:
-        # Key didn't exist before installation → remove it
-        current.pop(key, None)
-    else:
-        # Key had a value before installation → restore it
-        current[key] = old_value
-
-with open(settings_path, 'w') as f:
-    json.dump(current, f, indent=4)
-
-print('  ✅ VS Code settings restored to pre-Power-Pack state.')
-print('     All other settings left untouched.')
-"
-        else
-            # No manifest — fallback: remove only the known keys
-            echo "  ⚠️  No install manifest found. Removing known Power-Pack keys only."
-            echo "     (Original values for these keys cannot be restored.)"
-            python3 -c "
-import json, sys
-keys_to_remove = [
-    'r.rpath.mac', 'r.plot.useHttpgd', 'r.bracketedPaste',
-    'r.alwaysUseActiveTerminal', 'r.sessionWatcher',
-    'r.workspaceViewer.showObjectSize',
-    'editor.bracketPairColorization.enabled', 'editor.guides.bracketPairs',
-    'editor.formatOnType', 'workbench.colorTheme', 'workbench.startupEditor',
-    'editor.minimap.enabled', 'breadcrumbs.enabled'
-]
-try:
-    with open(sys.argv[1], 'r') as f:
-        settings = json.load(f)
-    for k in keys_to_remove:
-        settings.pop(k, None)
-    with open(sys.argv[1], 'w') as f:
-        json.dump(settings, f, indent=4)
-    print('  ✅ Power-Pack keys removed from settings.json.')
-except Exception as e:
-    print(f'  ⚠️  Could not edit settings.json automatically: {e}')
-    print('     You can remove the R-related keys manually.')
-" "$VSCODE_SETTINGS"
-        fi
-
-        # If settings.json is now empty ({}), and it didn't exist before, remove it
-        if [[ -f "$MANIFEST_FILE" ]]; then
-            python3 -c "
-import json
-manifest_path = '$MANIFEST_FILE'
-settings_path = '$VSCODE_SETTINGS'
-with open(manifest_path) as f:
-    m = json.load(f)
-if not m.get('settings_file_existed', True):
-    with open(settings_path) as f:
-        s = json.load(f)
-    if not s:
-        import os
-        os.remove(settings_path)
-        print('  🧹 settings.json removed (it did not exist before Power-Pack).')
-" 2>/dev/null || true
-        fi
-
-        REMOVED_SOMETHING=true
-    else
-        echo "  ⏭  Keeping VS Code settings."
-    fi
-fi
-
-# ── Keybindings.json restore ──
 if [[ -f "$VSCODE_KEYBINDINGS" ]] && grep -q "r.runSelection" "$VSCODE_KEYBINDINGS" 2>/dev/null; then
-    if confirm "Restore VS Code keybindings.json to pre-Power-Pack state?"; then
-        if [[ -f "$MANIFEST_FILE" ]]; then
-            python3 -c "
-import json, os
-
-manifest_path = '$MANIFEST_FILE'
-keybindings_path = '$VSCODE_KEYBINDINGS'
-
-with open(manifest_path, 'r') as f:
-    manifest = json.load(f)
-
-if not manifest.get('keybindings_file_existed', True):
-    # File didn't exist before → remove it entirely
-    os.remove(keybindings_path)
-    print('  ✅ keybindings.json removed (it did not exist before Power-Pack).')
-else:
-    # Restore original keybindings
-    with open(keybindings_path, 'w') as f:
-        json.dump(manifest.get('keybindings_before', []), f, indent=4)
-    print('  ✅ keybindings.json restored to pre-Power-Pack state.')
-"
-        else
-            # No manifest — fallback: remove only R-specific keybindings
-            python3 -c "
+    if confirm "Remove R keybindings (Cmd+Enter, Ctrl+Shift+M) from global keybindings.json?"; then
+        python3 -c "
 import json, sys
 try:
     with open(sys.argv[1], 'r') as f:
@@ -287,14 +156,14 @@ try:
         json.dump(bindings, f, indent=4)
     print('  ✅ R keybindings removed.')
 except Exception as e:
-    print(f'  ⚠️  Could not edit keybindings.json automatically: {e}')
-    print('     You can remove them manually.')
+    print(f'  ⚠️  Could not edit keybindings.json: {e}')
 " "$VSCODE_KEYBINDINGS"
-        fi
         REMOVED_SOMETHING=true
     else
         echo "  ⏭  Keeping VS Code keybindings."
     fi
+else
+    echo "  No R keybindings found — nothing to do."
 fi
 
 echo ""
@@ -491,17 +360,9 @@ fi
 echo ""
 
 # ──────────────────────────────────────────────
-# 10. CLEAN UP MANIFEST
+# 10. (VS Code workspace settings in .vscode/
+#      are part of the repo and left untouched.)
 # ──────────────────────────────────────────────
-
-if [[ -d "$MANIFEST_DIR" ]]; then
-    if confirm "Remove the Power-Pack manifest (~/.r-ai-powerpack/)?"; then
-        rm -rf "$MANIFEST_DIR"
-        echo "  ✅ Manifest removed."
-    else
-        echo "  ⏭  Keeping manifest."
-    fi
-fi
 
 echo ""
 

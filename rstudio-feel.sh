@@ -9,8 +9,14 @@ set -euo pipefail
 # ──────────────────────────────────────────────
 
 REPO_URL="https://raw.githubusercontent.com/dca-python/agentic-r/main"
-MANIFEST_DIR="$HOME/.r-ai-powerpack"
-MANIFEST_FILE="$MANIFEST_DIR/install-manifest.json"
+
+# ── Detect script directory (repo root) ──
+_SCRIPT_PATH="${BASH_SOURCE[0]:-}"
+if [[ -n "$_SCRIPT_PATH" ]] && [[ -f "$_SCRIPT_PATH" ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "$_SCRIPT_PATH")" && pwd)"
+else
+    SCRIPT_DIR=""
+fi
 
 clear
 echo "=========================================="
@@ -62,86 +68,9 @@ if [[ -n "$MISSING" ]]; then
     # Continue anyway for partial setup — don't exit
 fi
 
-# ──────────────────────────────────────────────
-# MANIFEST: snapshot the pre-installation state
-# Only created on the very first run. Subsequent
-# runs leave the manifest untouched so that the
-# snapshot always reflects the state BEFORE this
-# Power-Pack was ever installed.
-# ──────────────────────────────────────────────
-
+# Global keybindings path (VS Code has no workspace-scoped keybindings)
 VSCODE_USER_DIR="$HOME/Library/Application Support/Code/User"
-VSCODE_SETTINGS="$VSCODE_USER_DIR/settings.json"
 VSCODE_KEYBINDINGS="$VSCODE_USER_DIR/keybindings.json"
-
-if [[ ! -f "$MANIFEST_FILE" ]]; then
-    echo "📸 Saving a snapshot of your current VS Code settings..."
-    echo "   (So uninstall.sh can restore exactly this state later.)"
-    echo ""
-    mkdir -p "$MANIFEST_DIR"
-
-    python3 -c "
-import json, os, datetime
-
-manifest = {
-    'installed_at': datetime.datetime.now().astimezone().isoformat(),
-    'description': 'Snapshot of VS Code state before R AI Power-Pack installation. uninstall.sh uses this to restore your settings to exactly this point.',
-    'settings_file_existed': False,
-    'settings_before': {},
-    'keybindings_file_existed': False,
-    'keybindings_before': []
-}
-
-settings_path = os.path.expanduser('~/Library/Application Support/Code/User/settings.json')
-keybindings_path = os.path.expanduser('~/Library/Application Support/Code/User/keybindings.json')
-
-# Keys that rstudio-feel.sh will set
-managed_keys = [
-    'r.rpath.mac', 'r.plot.useHttpgd', 'r.bracketedPaste',
-    'r.alwaysUseActiveTerminal', 'r.sessionWatcher',
-    'r.workspaceViewer.showObjectSize',
-    'editor.bracketPairColorization.enabled', 'editor.guides.bracketPairs',
-    'editor.formatOnType', 'workbench.colorTheme', 'workbench.startupEditor',
-    'editor.minimap.enabled', 'breadcrumbs.enabled'
-]
-
-# Snapshot settings.json
-if os.path.isfile(settings_path):
-    manifest['settings_file_existed'] = True
-    try:
-        with open(settings_path, 'r') as f:
-            current = json.load(f)
-        # Store only the keys we will touch — with their current values
-        # Keys not present get null (= they didn't exist before)
-        for key in managed_keys:
-            if key in current:
-                manifest['settings_before'][key] = current[key]
-            else:
-                manifest['settings_before'][key] = None
-    except Exception:
-        # Malformed JSON — treat as empty
-        for key in managed_keys:
-            manifest['settings_before'][key] = None
-
-# Snapshot keybindings.json
-if os.path.isfile(keybindings_path):
-    manifest['keybindings_file_existed'] = True
-    try:
-        with open(keybindings_path, 'r') as f:
-            manifest['keybindings_before'] = json.load(f)
-    except Exception:
-        manifest['keybindings_before'] = []
-
-manifest_path = os.path.expanduser('~/.r-ai-powerpack/install-manifest.json')
-with open(manifest_path, 'w') as f:
-    json.dump(manifest, f, indent=2)
-"
-    echo "  ✅ Snapshot saved to ~/.r-ai-powerpack/install-manifest.json"
-    echo ""
-else
-    echo "ℹ️  Manifest already exists (first install snapshot preserved)."
-    echo ""
-fi
 
 # ──────────────────────────────────────────────
 # R PACKAGES
@@ -205,62 +134,43 @@ fi
 echo ""
 
 # ──────────────────────────────────────────────
-# VS CODE SETTINGS (settings.json)
+# VS CODE WORKSPACE SETTINGS (.vscode/settings.json)
+# Written to the repo/project root so global
+# user settings stay untouched.
 # ──────────────────────────────────────────────
 
-echo "⚙️  Configuring VS Code settings..."
-
-mkdir -p "$VSCODE_USER_DIR"
-
-# The settings we want to ensure are present
-declare -A R_SETTINGS
-R_SETTINGS=(
-    ["r.rpath.mac"]="\"$R_BINARY_PATH\""
-    ["r.plot.useHttpgd"]="true"
-    ["r.bracketedPaste"]="true"
-    ["r.alwaysUseActiveTerminal"]="true"
-    ["r.sessionWatcher"]="true"
-    ["r.workspaceViewer.showObjectSize"]="true"
-    ["editor.bracketPairColorization.enabled"]="true"
-    ["editor.guides.bracketPairs"]="\"active\""
-    ["editor.formatOnType"]="true"
-    ["workbench.colorTheme"]="\"Default Light Modern\""
-    ["workbench.startupEditor"]="\"none\""
-    ["editor.minimap.enabled"]="false"
-    ["breadcrumbs.enabled"]="false"
-)
-
-if [[ -f "$VSCODE_SETTINGS" ]] && grep -q '"r.plot.useHttpgd"' "$VSCODE_SETTINGS" 2>/dev/null; then
-    echo "✅ R settings already present — skipping."
+# Determine where to write .vscode/settings.json
+if [[ -n "$SCRIPT_DIR" ]]; then
+    WORKSPACE_DIR="$SCRIPT_DIR"
 else
-    # Build the settings block
-    SETTINGS_BLOCK=""
-    for key in "${!R_SETTINGS[@]}"; do
-        SETTINGS_BLOCK="$SETTINGS_BLOCK    \"$key\": ${R_SETTINGS[$key]},
-"
-    done
-    # Remove trailing comma from last line
-    SETTINGS_BLOCK=$(echo "$SETTINGS_BLOCK" | sed '$ s/,$//')
-
-    if [[ -f "$VSCODE_SETTINGS" ]]; then
-        # Merge into existing settings
-        TEMP_SETTINGS=$(mktemp)
-        sed '$ s/}$//' "$VSCODE_SETTINGS" > "$TEMP_SETTINGS"
-        if grep -q '"' "$TEMP_SETTINGS"; then
-            echo "," >> "$TEMP_SETTINGS"
-        fi
-        echo "$SETTINGS_BLOCK" >> "$TEMP_SETTINGS"
-        echo "}" >> "$TEMP_SETTINGS"
-        cp "$TEMP_SETTINGS" "$VSCODE_SETTINGS"
-        rm -f "$TEMP_SETTINGS"
-        echo "✅ R settings merged into existing configuration."
-    else
-        echo "{" > "$VSCODE_SETTINGS"
-        echo "$SETTINGS_BLOCK" >> "$VSCODE_SETTINGS"
-        echo "}" >> "$VSCODE_SETTINGS"
-        echo "✅ VS Code settings file created."
-    fi
+    # Running via curl — use the current working directory
+    WORKSPACE_DIR="$(pwd)"
 fi
+VSCODE_WS_DIR="$WORKSPACE_DIR/.vscode"
+VSCODE_WS_SETTINGS="$VSCODE_WS_DIR/settings.json"
+
+echo "⚙️  Writing workspace settings to $VSCODE_WS_DIR/settings.json..."
+
+mkdir -p "$VSCODE_WS_DIR"
+
+cat > "$VSCODE_WS_SETTINGS" << SETTINGS_EOF
+{
+    "r.rpath.mac": "$R_BINARY_PATH",
+    "r.plot.useHttpgd": true,
+    "r.bracketedPaste": true,
+    "r.alwaysUseActiveTerminal": true,
+    "r.sessionWatcher": true,
+    "r.workspaceViewer.showObjectSize": true,
+    "editor.bracketPairColorization.enabled": true,
+    "editor.guides.bracketPairs": "active",
+    "editor.formatOnType": true,
+    "workbench.colorTheme": "Default Light Modern",
+    "workbench.startupEditor": "none",
+    "editor.minimap.enabled": false,
+    "breadcrumbs.enabled": false
+}
+SETTINGS_EOF
+echo "✅ Workspace settings written."
 
 echo ""
 
@@ -293,8 +203,47 @@ KB_PIPE
         echo "✅ Added pipe shortcut (Ctrl+Shift+M)."
     fi
 else
-    # Write fresh keybindings file
-    cat > "$VSCODE_KEYBINDINGS" << 'KB_FRESH'
+    # R keybindings to add
+    R_KEYBINDINGS='    {
+        "key": "cmd+enter",
+        "command": "r.runSelection",
+        "when": "editorTextFocus && editorLangId == '\''r'\''"
+    },
+    {
+        "key": "ctrl+shift+m",
+        "command": "type",
+        "args": { "text": " |> " },
+        "when": "editorTextFocus && editorLangId == '\''r'\''"
+    }'
+
+    if [[ -f "$VSCODE_KEYBINDINGS" ]] && grep -q '"' "$VSCODE_KEYBINDINGS" 2>/dev/null; then
+        # File exists with content — ask before modifying
+        echo ""
+        echo "  You already have custom keybindings in:"
+        echo "  $VSCODE_KEYBINDINGS"
+        echo ""
+        echo "  This will ADD (not replace) two R shortcuts:"
+        echo "    • Cmd+Enter      → run current line (only in .R files)"
+        echo "    • Ctrl+Shift+M   → insert |> pipe (only in .R files)"
+        echo ""
+        read -rp "  Add these R keybindings to your existing file? (y/n): " KB_ANSWER
+        if [[ "$KB_ANSWER" =~ ^[Yy] ]]; then
+            # Append to existing array
+            TEMP_KB=$(mktemp)
+            sed '$ s/\]$//' "$VSCODE_KEYBINDINGS" > "$TEMP_KB"
+            echo "," >> "$TEMP_KB"
+            echo "$R_KEYBINDINGS" >> "$TEMP_KB"
+            echo "]" >> "$TEMP_KB"
+            cp "$TEMP_KB" "$VSCODE_KEYBINDINGS"
+            rm -f "$TEMP_KB"
+            echo "  ✅ R keybindings added to existing file."
+        else
+            echo "  ⏭  Skipped. You can add them manually later."
+        fi
+    else
+        # No file or empty — create fresh
+        mkdir -p "$VSCODE_USER_DIR"
+        cat > "$VSCODE_KEYBINDINGS" << 'KB_FRESH'
 [
     {
         "key": "cmd+enter",
@@ -309,7 +258,8 @@ else
     }
 ]
 KB_FRESH
-    echo "✅ Keybindings configured (Cmd+Enter, Ctrl+Shift+M)."
+        echo "✅ Keybindings configured (Cmd+Enter, Ctrl+Shift+M)."
+    fi
 fi
 
 echo ""
@@ -322,11 +272,7 @@ echo "  • httpgd         → plots appear in a VS Code side panel"
 echo "  • R Shortcuts    → Alt+- types the <- arrow"
 echo "  • Cmd+Enter      → runs current line and moves to the next one"
 echo "  • Ctrl+Shift+M   → inserts |> (pipe operator)"
-echo "  • Rainbow brackets → nested parentheses get distinct colors"
-echo "  • Workspace viewer → see your loaded variables (like RStudio's Environment tab)"
-echo "  • Session watcher  → VS Code tracks your R session state"
-echo "  • Light theme      → clean, light background like RStudio"
-echo "  • Decluttered      → welcome tab, minimap, breadcrumbs removed"
+echo "  • .vscode/settings.json → workspace-level R config (global settings untouched)"
 echo ""
 echo "👉 Restart VS Code now (Cmd+Q, then reopen) to activate everything."
 echo ""
