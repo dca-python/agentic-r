@@ -136,7 +136,7 @@ my-project/
 └── README.md
 ```
 
-The starter scripts are templates – open them, edit the commented-out lines, and you're running.
+The starter scripts use `mtcars` as demo data and run immediately — replace with your own data later. The folder is also a git repository, which AI agents (Claude Code, Gemini CLI) require.
 
 **Paste this into Terminal:**
 
@@ -199,7 +199,7 @@ The script covers, in this order:
 1. **AI agents** (Claude Code, Gemini CLI, Kiro CLI)
 2. **VS Code extensions** (R extension, R Shortcuts)
 3. **VS Code settings & keybindings** added by `rstudio-feel.sh`
-4. **R packages** (`languageserver`, `httpgd`, `here`)
+4. **R packages** (`languageserver`, `httpgd`, `tidyverse`)
 5. **Node.js**
 6. **VS Code** (with optional user data cleanup)
 7. **R** (with optional user library cleanup)

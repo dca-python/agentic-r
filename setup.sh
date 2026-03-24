@@ -27,7 +27,7 @@ echo "🌟 R-RESEARCHER AI SETUP STARTING"
 echo "=========================================="
 echo ""
 echo "This script will install: Homebrew, R, VS Code, Node.js,"
-echo "and the R Language Server for autocomplete."
+echo "the tidyverse, and the R Language Server for autocomplete."
 echo ""
 echo "------------------------------------------"
 
@@ -222,19 +222,28 @@ fi
 echo ""
 
 # ──────────────────────────────────────────────
-# 7. R Language Server
+# 7. R Packages (languageserver + tidyverse)
 # ──────────────────────────────────────────────
 if command -v Rscript &> /dev/null; then
-    echo "📦 Installing R Language Server (for autocomplete in VS Code)..."
     # Create user R library directory if it doesn't exist
     R_LIB_USER=$(Rscript -e "cat(Sys.getenv('R_LIBS_USER'))" 2>/dev/null || echo "")
     if [[ -n "$R_LIB_USER" ]] && [[ ! -d "$R_LIB_USER" ]]; then
         mkdir -p "$R_LIB_USER"
     fi
-    Rscript -e "if (!requireNamespace('languageserver', quietly = TRUE)) install.packages('languageserver', repos = 'https://cloud.r-project.org')" || {
-        echo "⚠️  R language server installation had an issue."
-        echo "   You can install it manually later: install.packages('languageserver')"
+
+    echo "📦 Installing R packages (this may take a few minutes the first time)..."
+
+    Rscript -e "
+    pkgs <- c('languageserver', 'tidyverse', 'renv')
+    need <- pkgs[!sapply(pkgs, requireNamespace, quietly = TRUE)]
+    if (length(need)) install.packages(need, repos = 'https://cloud.r-project.org')
+    " || {
+        echo "⚠️  Some R packages failed to install."
+        echo "   You can install them manually: install.packages(c('languageserver', 'tidyverse', 'renv'))"
     }
+    echo "  ✅ languageserver (autocomplete in VS Code)"
+    echo "  ✅ tidyverse (used by the starter scripts)"
+    echo "  ✅ renv (package management — like pip/uv for R)"
 else
     echo "⚠️  Rscript not found on PATH. R may need a Terminal restart to be detected."
 fi

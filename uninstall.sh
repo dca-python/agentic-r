@@ -176,7 +176,7 @@ echo "── R Packages ──"
 echo ""
 
 if command -v Rscript &> /dev/null; then
-    for R_PKG in "languageserver" "httpgd" "here"; do
+    for R_PKG in "languageserver" "httpgd" "tidyverse"; do
         INSTALLED=$(Rscript -e "cat(requireNamespace('$R_PKG', quietly = TRUE))" 2>/dev/null || echo "FALSE")
         if [[ "$INSTALLED" == "TRUE" ]]; then
             if confirm "Remove R package '$R_PKG'?"; then
