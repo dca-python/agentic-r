@@ -108,7 +108,7 @@ VS Code is more powerful than RStudio, but it feels different out of the box. Th
 **Paste this into Terminal:**
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/rstudio-feel.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dca-python/agentic-r/main/rstudio-feel.sh)"
 ```
 
 After it finishes, **restart VS Code** (`Cmd + Q`, then reopen) to activate everything.
@@ -141,7 +141,7 @@ The starter scripts are templates – open them, edit the commented-out lines, a
 **Paste this into Terminal:**
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/new-project.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dca-python/agentic-r/main/new-project.sh)"
 ```
 
 ---
@@ -163,7 +163,7 @@ This should be set up automatically by `rstudio-feel.sh`. If it still doesn't wo
 The setup script handles the most common permission issues preemptively. If you still hit one, paste this command:
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/fix-permissions.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dca-python/agentic-r/main/fix-permissions.sh)"
 ```
 
 Then close Terminal, reopen it, and try the original command again.
@@ -191,7 +191,7 @@ Every line should show a version number and a ✅.
 If you want to reverse the setup — partially or completely — use the uninstall script. It walks you through every component one by one and asks before removing anything. If something was already on your Mac before you ran `setup.sh`, just say "n" to keep it.
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/uninstall.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dca-python/agentic-r/main/uninstall.sh)"
 ```
 
 The script covers, in this order:

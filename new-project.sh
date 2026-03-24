@@ -7,6 +7,21 @@ set -euo pipefail
 # No git, no complicated tooling — just organized folders.
 # ──────────────────────────────────────────────
 
+REPO_URL="https://raw.githubusercontent.com/dca-python/agentic-r/main"
+
+# ── Helper: offer to run the next script ──
+offer_next() {
+    local prompt="$1"
+    local script_url="$2"
+    local answer
+    read -rp "$prompt (y/n): " answer
+    if [[ "$answer" =~ ^[Yy] ]]; then
+        echo ""
+        /bin/bash -c "$(curl -fsSL "$script_url")"
+        exit 0
+    fi
+}
+
 clear
 echo "=========================================="
 echo "📁 NEW R PROJECT SETUP"
@@ -180,3 +195,13 @@ if command -v code &> /dev/null; then
         code "$PROJECT_DIR"
     fi
 fi
+
+echo ""
+echo "------------------------------------------"
+echo ""
+echo "What's next?"
+echo ""
+offer_next "Make VS Code feel like RStudio?" "$REPO_URL/rstudio-feel.sh"
+echo ""
+offer_next "Run the full setup (Homebrew, R, VS Code, Node.js)?" "$REPO_URL/setup.sh"
+echo ""

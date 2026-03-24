@@ -8,6 +8,21 @@ set -euo pipefail
 # Safe to run multiple times.
 # ──────────────────────────────────────────────
 
+REPO_URL="https://raw.githubusercontent.com/dca-python/agentic-r/main"
+
+# ── Helper: offer to run the next script ──
+offer_next() {
+    local prompt="$1"
+    local script_url="$2"
+    local answer
+    read -rp "$prompt (y/n): " answer
+    if [[ "$answer" =~ ^[Yy] ]]; then
+        echo ""
+        /bin/bash -c "$(curl -fsSL "$script_url")"
+        exit 0
+    fi
+}
+
 clear
 echo "=========================================="
 echo "🔧 DEALING WITH PERMISSION ISSUES"
@@ -107,3 +122,13 @@ else
     echo "All permissions look correct. If you're still seeing errors,"
     echo "try closing Terminal completely (Cmd+Q) and reopening it."
 fi
+
+echo ""
+echo "------------------------------------------"
+echo ""
+echo "What's next?"
+echo ""
+offer_next "Re-run the full setup?" "$REPO_URL/setup.sh"
+echo ""
+offer_next "Make VS Code feel like RStudio?" "$REPO_URL/rstudio-feel.sh"
+echo ""

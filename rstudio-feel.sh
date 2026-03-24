@@ -8,6 +8,10 @@ set -euo pipefail
 # Safe to run multiple times.
 # ──────────────────────────────────────────────
 
+REPO_URL="https://raw.githubusercontent.com/dca-python/agentic-r/main"
+MANIFEST_DIR="$HOME/.r-ai-powerpack"
+MANIFEST_FILE="$MANIFEST_DIR/install-manifest.json"
+
 clear
 echo "=========================================="
 echo "🎹 RSTUDIO-FEEL SETUP"
@@ -56,6 +60,87 @@ if [[ -n "$MISSING" ]]; then
     echo "   Close Terminal (Cmd + Q), open a new one, try again."
     echo ""
     # Continue anyway for partial setup — don't exit
+fi
+
+# ──────────────────────────────────────────────
+# MANIFEST: snapshot the pre-installation state
+# Only created on the very first run. Subsequent
+# runs leave the manifest untouched so that the
+# snapshot always reflects the state BEFORE this
+# Power-Pack was ever installed.
+# ──────────────────────────────────────────────
+
+VSCODE_USER_DIR="$HOME/Library/Application Support/Code/User"
+VSCODE_SETTINGS="$VSCODE_USER_DIR/settings.json"
+VSCODE_KEYBINDINGS="$VSCODE_USER_DIR/keybindings.json"
+
+if [[ ! -f "$MANIFEST_FILE" ]]; then
+    echo "📸 Saving a snapshot of your current VS Code settings..."
+    echo "   (So uninstall.sh can restore exactly this state later.)"
+    echo ""
+    mkdir -p "$MANIFEST_DIR"
+
+    python3 -c "
+import json, os, datetime
+
+manifest = {
+    'installed_at': datetime.datetime.now().astimezone().isoformat(),
+    'description': 'Snapshot of VS Code state before R AI Power-Pack installation. uninstall.sh uses this to restore your settings to exactly this point.',
+    'settings_file_existed': False,
+    'settings_before': {},
+    'keybindings_file_existed': False,
+    'keybindings_before': []
+}
+
+settings_path = os.path.expanduser('~/Library/Application Support/Code/User/settings.json')
+keybindings_path = os.path.expanduser('~/Library/Application Support/Code/User/keybindings.json')
+
+# Keys that rstudio-feel.sh will set
+managed_keys = [
+    'r.rpath.mac', 'r.plot.useHttpgd', 'r.bracketedPaste',
+    'r.alwaysUseActiveTerminal', 'r.sessionWatcher',
+    'r.workspaceViewer.showObjectSize',
+    'editor.bracketPairColorization.enabled', 'editor.guides.bracketPairs',
+    'editor.formatOnType', 'workbench.colorTheme', 'workbench.startupEditor',
+    'editor.minimap.enabled', 'breadcrumbs.enabled'
+]
+
+# Snapshot settings.json
+if os.path.isfile(settings_path):
+    manifest['settings_file_existed'] = True
+    try:
+        with open(settings_path, 'r') as f:
+            current = json.load(f)
+        # Store only the keys we will touch — with their current values
+        # Keys not present get null (= they didn't exist before)
+        for key in managed_keys:
+            if key in current:
+                manifest['settings_before'][key] = current[key]
+            else:
+                manifest['settings_before'][key] = None
+    except Exception:
+        # Malformed JSON — treat as empty
+        for key in managed_keys:
+            manifest['settings_before'][key] = None
+
+# Snapshot keybindings.json
+if os.path.isfile(keybindings_path):
+    manifest['keybindings_file_existed'] = True
+    try:
+        with open(keybindings_path, 'r') as f:
+            manifest['keybindings_before'] = json.load(f)
+    except Exception:
+        manifest['keybindings_before'] = []
+
+manifest_path = os.path.expanduser('~/.r-ai-powerpack/install-manifest.json')
+with open(manifest_path, 'w') as f:
+    json.dump(manifest, f, indent=2)
+"
+    echo "  ✅ Snapshot saved to ~/.r-ai-powerpack/install-manifest.json"
+    echo ""
+else
+    echo "ℹ️  Manifest already exists (first install snapshot preserved)."
+    echo ""
 fi
 
 # ──────────────────────────────────────────────
@@ -123,9 +208,6 @@ echo ""
 # VS CODE SETTINGS (settings.json)
 # ──────────────────────────────────────────────
 
-VSCODE_USER_DIR="$HOME/Library/Application Support/Code/User"
-VSCODE_SETTINGS="$VSCODE_USER_DIR/settings.json"
-
 echo "⚙️  Configuring VS Code settings..."
 
 mkdir -p "$VSCODE_USER_DIR"
@@ -185,8 +267,6 @@ echo ""
 # ──────────────────────────────────────────────
 # VS CODE KEYBINDINGS (keybindings.json)
 # ──────────────────────────────────────────────
-
-VSCODE_KEYBINDINGS="$VSCODE_USER_DIR/keybindings.json"
 
 echo "⌨️  Configuring keyboard shortcuts..."
 
@@ -249,3 +329,19 @@ echo "  • Light theme      → clean, light background like RStudio"
 echo "  • Decluttered      → welcome tab, minimap, breadcrumbs removed"
 echo ""
 echo "👉 Restart VS Code now (Cmd+Q, then reopen) to activate everything."
+echo ""
+echo "------------------------------------------"
+echo ""
+echo "What's next?"
+echo ""
+echo "  📦 Install an AI agent (pick one or all — they don't conflict):"
+echo "     npm install -g @anthropic-ai/claude-code    # Claude Code"
+echo "     npm install -g @google/gemini-cli           # Gemini CLI (free tier)"
+echo "     npm install -g kirocli                      # Kiro CLI"
+echo ""
+echo "  📁 Start a new project:"
+echo "     /bin/bash -c \"\$(curl -fsSL $REPO_URL/new-project.sh)\""
+echo ""
+echo "  🗑  Undo everything this script did:"
+echo "     /bin/bash -c \"\$(curl -fsSL $REPO_URL/uninstall.sh)\""
+echo ""

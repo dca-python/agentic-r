@@ -6,6 +6,21 @@ set -euo pipefail
 # Safe to run multiple times. Will skip anything already installed.
 # ──────────────────────────────────────────────
 
+REPO_URL="https://raw.githubusercontent.com/dca-python/agentic-r/main"
+
+# ── Helper: offer to run the next script ──
+offer_next() {
+    local prompt="$1"
+    local script_url="$2"
+    local answer
+    read -rp "$prompt (y/n): " answer
+    if [[ "$answer" =~ ^[Yy] ]]; then
+        echo ""
+        /bin/bash -c "$(curl -fsSL "$script_url")"
+        exit 0
+    fi
+}
+
 clear
 echo "=========================================="
 echo "🌟 R-RESEARCHER AI SETUP STARTING"
@@ -272,10 +287,16 @@ else
 fi
 
 echo ""
-echo "Next steps:"
-echo "  1. Check the README for AI Agent install commands."
-echo "  2. Run the 'rstudio-feel.sh' script to make VS Code feel like RStudio."
-echo ""
 
 # Open VS Code for the user
 open -a "Visual Studio Code" 2>/dev/null || echo "💡 Open VS Code from your Applications folder."
+
+echo ""
+echo "------------------------------------------"
+echo ""
+echo "What's next?"
+echo ""
+offer_next "Make VS Code feel like RStudio? (recommended)" "$REPO_URL/rstudio-feel.sh"
+echo ""
+offer_next "Create a new R project folder?" "$REPO_URL/new-project.sh"
+echo ""
