@@ -38,7 +38,7 @@ Press `Cmd + Space`, type **Terminal**, and hit **Enter**. A window with a blink
 Copy the entire block below, paste it into the Terminal window, and hit **Enter**:
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/setup.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dca-python/agentic-r/main/setup.sh)"
 ```
 
 Your Mac will ask for your password once.
